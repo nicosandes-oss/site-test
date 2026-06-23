@@ -27,7 +27,11 @@ const LOOKBACK_DAYS = parseInt(process.env.LOOKBACK_DAYS || "60", 10);
 // Safety ceiling so one lookup can't run away and chew through the whole
 // rate-limit budget if two players share an unusually large number of games.
 const MAX_SHARED_MATCHES_TO_FETCH = 60;
-
+// ---------------------------------------------------------------------------
+// Matchup cache
+// ---------------------------------------------------------------------------
+const matchupCache = new Map();
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 // ---------------------------------------------------------------------------
 // Search history (autocomplete suggestions)
 // ---------------------------------------------------------------------------
