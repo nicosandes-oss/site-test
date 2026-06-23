@@ -394,7 +394,11 @@
           </button>
           <div class="match-detail" id="detail-${index}" style="display:none">
             <div class="detail-relation">
-              ${queueLabel} &middot; ${m.sameTeam ? `${nameA} and ${nameB} were teammates` : `${nameA} and ${nameB} were opponents`}
+              ${queueLabel} &middot; 
+              <strong>${m.sameTeam ? "Same Team" : "Enemies"}</strong> &middot;
+              ${m.sameTeam 
+                ? `${nameA} and ${nameB} were teammates`
+                : `${nameA} and ${nameB} were opponents`}
               ${m.bothJungle ? ` &middot; <span style="color:var(--gold)">both jungling</span>` : ""}
             </div>
             <div class="detail-grid">
