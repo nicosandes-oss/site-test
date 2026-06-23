@@ -371,6 +371,7 @@
         ? (m.a.win ? "var(--win)" : "var(--loss)")
         : (m.a.win ? "var(--accent-a)" : "var(--accent-b)");
       const queueLabel = QUEUE_NAMES[m.queueId] || m.gameMode || "Custom";
+      const teamLabel = m.sameTeam ? "Same Team" : "Enemies";
 
       return `
         <div class="match-card">
