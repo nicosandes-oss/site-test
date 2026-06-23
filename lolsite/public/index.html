@@ -71,11 +71,18 @@
     cursor: pointer;
   }
   .search-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .jungle-toggle {
+    display: flex; align-items: center; gap: 8px; margin-top: 14px;
+    font-size: 13px; color: var(--text-dim); cursor: pointer; justify-content: center;
+  }
+  .jungle-toggle input { accent-color: var(--gold); width: 15px; height: 15px; cursor: pointer; }
+  .jungle-toggle em { color: var(--text-dim); font-style: normal; opacity: 0.7; font-size: 12px; }
   .hint { text-align: center; font-size: 12px; color: var(--text-dim); margin-top: 12px; }
 
   .results { margin-top: 28px; }
   .status-msg { text-align: center; padding: 30px; color: var(--text-dim); }
   .status-msg.error { color: var(--loss); }
+  .truncated-note { text-align: center; font-size: 12px; color: var(--text-dim); margin-bottom: 12px; }
 
   .record-ticker {
     background: var(--surface); border: 1px solid var(--hairline); border-radius: 14px;
@@ -93,25 +100,62 @@
   .section-label { font-size: 12px; font-weight: 700; letter-spacing: 0.08em;
     text-transform: uppercase; color: var(--text-dim); margin: 0 0 10px 4px; }
 
-  .match-row { background: var(--surface); border: 1px solid var(--hairline); border-radius: 12px;
-    margin-bottom: 8px; padding: 12px 14px; display: flex; align-items: center; gap: 12px; }
-  .match-stripe { width: 4px; align-self: stretch; border-radius: 2px; flex-shrink: 0; }
-  .match-meta { font-size: 11px; color: var(--text-dim); width: 90px; flex-shrink: 0; }
+  .match-card { background: var(--surface); border: 1px solid var(--hairline); border-radius: 12px;
+    margin-bottom: 8px; overflow: hidden; }
+  .match-summary {
+    width: 100%; background: none; border: none; color: var(--text); cursor: pointer;
+    display: flex; align-items: center; gap: 12px; padding: 12px 14px; font-family: inherit;
+    text-align: left;
+  }
+  .match-summary:hover { background: rgba(255,255,255,0.03); }
+  .match-stripe { width: 4px; align-self: stretch; border-radius: 2px; flex-shrink: 0; min-height: 36px; }
+  .match-meta { font-size: 11px; color: var(--text-dim); width: 78px; flex-shrink: 0; line-height: 1.5; }
   .match-side { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
   .match-side.b { justify-content: flex-end; }
+  .champ-icon { width: 28px; height: 28px; border-radius: 6px; flex-shrink: 0; background: var(--hairline); }
   .pill { font-size: 10px; font-weight: 800; padding: 3px 7px; border-radius: 5px; flex-shrink: 0; }
   .pill.win { background: rgba(63,203,124,0.2); color: var(--win); }
   .pill.loss { background: rgba(255,92,104,0.2); color: var(--loss); }
   .champ-name { font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .kda { font-size: 12px; color: var(--text-dim); flex-shrink: 0; }
+  .chevron { color: var(--text-dim); flex-shrink: 0; font-size: 12px; width: 16px; text-align: center; }
+
+  .match-detail { border-top: 1px solid var(--hairline); padding: 16px; background: var(--bg); }
+  .detail-relation { font-size: 12px; color: var(--text-dim); text-align: center; margin-bottom: 16px; }
+  .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .detail-player { display: flex; flex-direction: column; gap: 10px; }
+  .detail-player.right { align-items: flex-end; text-align: right; }
+  .detail-head { display: flex; align-items: center; gap: 8px; }
+  .detail-player.right .detail-head { flex-direction: row-reverse; }
+  .detail-champ-icon { width: 40px; height: 40px; border-radius: 8px; background: var(--hairline); }
+  .detail-name { font-size: 12px; font-weight: 700; }
+  .detail-champ { font-size: 14px; font-weight: 800; }
+  .detail-position { font-size: 10px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.04em; }
+  .detail-kda { font-size: 16px; font-weight: 800; }
+  .detail-kda-sub { font-size: 11px; color: var(--text-dim); }
+  .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 14px; font-size: 12px; width: 100%; }
+  .detail-player.right .stat-grid { direction: rtl; }
+  .stat-row { display: flex; justify-content: space-between; color: var(--text-dim); gap: 8px; }
+  .stat-row b { color: var(--text); font-weight: 700; }
+  .item-row { display: flex; gap: 4px; flex-wrap: wrap; }
+  .detail-player.right .item-row { justify-content: flex-end; }
+  .item-icon { width: 26px; height: 26px; border-radius: 5px; background: var(--surface); border: 1px solid var(--hairline); }
+  .item-icon.empty { background: var(--surface); opacity: 0.3; }
+
+  .empty-state { text-align: center; padding: 40px 20px; color: var(--text-dim); }
 
   @media (max-width: 480px) {
     h1 { font-size: 22px; }
     .matchup-row { grid-template-columns: 1fr; gap: 10px; }
     .vs-divider { flex-direction: row; padding-top: 0; gap: 10px; }
     .vs-divider div { width: 100%; height: 1px; max-width: 60px; }
-    .match-row { flex-wrap: wrap; }
+    .match-summary { flex-wrap: wrap; }
     .match-meta { width: auto; }
+    .detail-grid { grid-template-columns: 1fr; gap: 20px; }
+    .detail-player.right { align-items: flex-start; text-align: left; }
+    .detail-player.right .detail-head { flex-direction: row; }
+    .detail-player.right .stat-grid { direction: ltr; }
+    .detail-player.right .item-row { justify-content: flex-start; }
   }
 </style>
 </head>
@@ -133,7 +177,11 @@
         </div>
       </div>
       <button class="search-btn" id="searchBtn">Find shared matches</button>
-      <div class="hint">Enter Riot IDs like <code>Faker#KR1</code> — the part after # is required</div>
+      <label class="jungle-toggle">
+        <input type="checkbox" id="jungleOnly" />
+        <span>Jungle vs jungle only <em>(both on Smite)</em></span>
+      </label>
+      <div class="hint">Enter Riot IDs like <code>Faker#KR1</code> &middot; searches the last 60 days</div>
     </div>
 
     <div class="results" id="results"></div>
@@ -145,6 +193,26 @@
     const searchBtn = document.getElementById("searchBtn");
     const resultsEl = document.getElementById("results");
 
+    // Data Dragon version is fetched once per page load so icons never
+    // point at a stale patch number.
+    let ddragonVersion = "14.1.1"; // fallback if the version fetch fails
+    fetch("https://ddragon.leagueoflegends.com/api/versions.json")
+      .then((r) => r.json())
+      .then((versions) => { ddragonVersion = versions[0]; })
+      .catch(() => {});
+
+    function champIconUrl(championName) {
+      return `https://ddragon.leagueoflegends.com/cdn/${ddragonVersion}/img/champion/${championName}.png`;
+    }
+    function itemIconUrl(itemId) {
+      return `https://ddragon.leagueoflegends.com/cdn/${ddragonVersion}/img/item/${itemId}.png`;
+    }
+
+    const QUEUE_NAMES = {
+      400: "Normal Draft", 420: "Ranked Solo/Duo", 430: "Normal Blind",
+      440: "Ranked Flex", 450: "ARAM", 700: "Clash", 900: "URF",
+    };
+
     function timeAgo(ms) {
       const days = Math.floor((Date.now() - ms) / 86400000);
       if (days <= 0) return "Today";
@@ -153,8 +221,91 @@
       return Math.floor(days / 7) + "w ago";
     }
 
+    function fmt(n) {
+      return n.toLocaleString();
+    }
+
+    function itemRow(p) {
+      const slots = [...p.items];
+      while (slots.length < 6) slots.push(null);
+      let html = "";
+      for (const id of slots) {
+        html += id
+          ? `<img class="item-icon" src="${itemIconUrl(id)}" alt="" loading="lazy" />`
+          : `<div class="item-icon empty"></div>`;
+      }
+      if (p.trinket) {
+        html += `<img class="item-icon" src="${itemIconUrl(p.trinket)}" alt="" loading="lazy" />`;
+      }
+      return `<div class="item-row">${html}</div>`;
+    }
+
+    function detailPlayer(name, p, side) {
+      return `
+        <div class="detail-player ${side === "b" ? "right" : ""}">
+          <div class="detail-head">
+            <img class="detail-champ-icon" src="${champIconUrl(p.champion)}" alt="${p.champion}" />
+            <div>
+              <div class="detail-name" style="color:${side === "a" ? "var(--accent-a)" : "var(--accent-b)"}">${name}</div>
+              <div class="detail-champ">${p.champion}</div>
+              ${p.position ? `<div class="detail-position">${p.position.replace("_", " ")}</div>` : ""}
+            </div>
+          </div>
+          <div class="detail-kda">${p.k} / <span style="color:var(--loss)">${p.d}</span> / ${p.a}</div>
+          <div class="stat-grid">
+            <div class="stat-row"><span>CS</span><b>${p.cs}</b></div>
+            <div class="stat-row"><span>Vision</span><b>${p.visionScore}</b></div>
+            <div class="stat-row"><span>Damage dealt</span><b>${fmt(p.damageDealt)}</b></div>
+            <div class="stat-row"><span>Damage taken</span><b>${fmt(p.damageTaken)}</b></div>
+            <div class="stat-row"><span>Gold earned</span><b>${fmt(p.goldEarned)}</b></div>
+            <div class="stat-row"><span>Wards placed</span><b>${p.wardsPlaced}</b></div>
+          </div>
+          ${itemRow(p)}
+        </div>
+      `;
+    }
+
+    function matchCardHtml(m, nameA, nameB, index) {
+      const stripe = m.sameTeam
+        ? (m.a.win ? "var(--win)" : "var(--loss)")
+        : (m.a.win ? "var(--accent-a)" : "var(--accent-b)");
+      const queueLabel = QUEUE_NAMES[m.queueId] || m.gameMode || "Custom";
+
+      return `
+        <div class="match-card">
+          <button class="match-summary" data-index="${index}">
+            <div class="match-stripe" style="background:${stripe}"></div>
+            <div class="match-meta">${timeAgo(m.gameCreation)}<br>${m.durationMin}m</div>
+            <div class="match-side a">
+              <span class="pill ${m.a.win ? "win" : "loss"}">${m.a.win ? "WIN" : "LOSS"}</span>
+              <img class="champ-icon" src="${champIconUrl(m.a.champion)}" alt="${m.a.champion}" loading="lazy" />
+              <span class="champ-name">${m.a.champion}</span>
+              <span class="kda">${m.a.k}/${m.a.d}/${m.a.a}</span>
+            </div>
+            <div class="match-side b">
+              <span class="kda">${m.b.k}/${m.b.d}/${m.b.a}</span>
+              <span class="champ-name">${m.b.champion}</span>
+              <img class="champ-icon" src="${champIconUrl(m.b.champion)}" alt="${m.b.champion}" loading="lazy" />
+              <span class="pill ${m.b.win ? "win" : "loss"}">${m.b.win ? "WIN" : "LOSS"}</span>
+            </div>
+            <span class="chevron" data-chevron="${index}">&#9660;</span>
+          </button>
+          <div class="match-detail" id="detail-${index}" style="display:none">
+            <div class="detail-relation">
+              ${queueLabel} &middot; ${m.sameTeam ? `${nameA} and ${nameB} were teammates` : `${nameA} and ${nameB} were opponents`}
+              ${m.bothJungle ? ` &middot; <span style="color:var(--gold)">both jungling</span>` : ""}
+            </div>
+            <div class="detail-grid">
+              ${detailPlayer(nameA, m.a, "a")}
+              ${detailPlayer(nameB, m.b, "b")}
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
     function renderResults(data, nameA, nameB) {
-      const { matches, record } = data;
+      const { matches, record, lookbackDays, truncated, jungleOnly, jungleMatchCount, totalFetchedCount } = data;
       const total = record.aWins + record.bWins;
       const aPct = total ? (record.aWins / total) * 100 : 50;
 
@@ -167,53 +318,54 @@
           </div>
           <div class="record-bar"><div class="record-bar-fill" style="width:${aPct}%"></div></div>
           <div class="record-caption">
-            head-to-head as opponents
+            ${jungleOnly ? "head-to-head as opposing junglers" : "head-to-head as opponents"} &middot; last ${lookbackDays} days
             ${record.allyGames > 0 ? "&middot; " + record.allyGames + " more as teammates" : "&middot; never on the same team"}
           </div>
         </div>
       `;
 
+      if (jungleOnly && totalFetchedCount > 0) {
+        html += `<div class="truncated-note">${jungleMatchCount} of ${totalFetchedCount} shared matches had both players on Smite</div>`;
+      }
+
+      if (truncated) {
+        html += `<div class="truncated-note">Showing the most recent matches &mdash; these two have played even more than this in the window.</div>`;
+      }
+
       if (matches.length === 0) {
-        html += `<div class="status-msg">No shared matches found in the last 50 games for each player.</div>`;
+        html += `<div class="status-msg">${jungleOnly ? "No shared games found where both were jungling" : "No shared matches found"} in the last ${lookbackDays} days.</div>`;
       } else {
         html += `<div class="section-label">Shared matches &middot; ${matches.length}</div>`;
-        for (const m of matches) {
-          const stripe = m.sameTeam
-            ? (m.a.win ? "var(--win)" : "var(--loss)")
-            : (m.a.win ? "var(--accent-a)" : "var(--accent-b)");
-          html += `
-            <div class="match-row">
-              <div class="match-stripe" style="background:${stripe}"></div>
-              <div class="match-meta">${timeAgo(m.gameCreation)}<br>${m.durationMin}m</div>
-              <div class="match-side a">
-                <span class="pill ${m.a.win ? "win" : "loss"}">${m.a.win ? "WIN" : "LOSS"}</span>
-                <span class="champ-name">${m.a.champion}</span>
-                <span class="kda">${m.a.k}/${m.a.d}/${m.a.a}</span>
-              </div>
-              <div class="match-side b">
-                <span class="kda">${m.b.k}/${m.b.d}/${m.b.a}</span>
-                <span class="champ-name">${m.b.champion}</span>
-                <span class="pill ${m.b.win ? "win" : "loss"}">${m.b.win ? "WIN" : "LOSS"}</span>
-              </div>
-            </div>
-          `;
-        }
+        matches.forEach((m, i) => { html += matchCardHtml(m, nameA, nameB, i); });
       }
 
       resultsEl.innerHTML = html;
+
+      resultsEl.querySelectorAll(".match-summary").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const idx = btn.getAttribute("data-index");
+          const detail = document.getElementById("detail-" + idx);
+          const chevron = resultsEl.querySelector(`[data-chevron="${idx}"]`);
+          const isOpen = detail.style.display !== "none";
+          detail.style.display = isOpen ? "none" : "block";
+          chevron.innerHTML = isOpen ? "&#9660;" : "&#9650;";
+        });
+      });
     }
 
     async function search() {
       const a = nameAInput.value.trim();
       const b = nameBInput.value.trim();
+      const jungleOnly = document.getElementById("jungleOnly").checked;
       if (!a || !b) return;
 
       searchBtn.disabled = true;
       searchBtn.textContent = "Searching...";
-      resultsEl.innerHTML = `<div class="status-msg">Looking up matches&hellip; this can take a few seconds.</div>`;
+      resultsEl.innerHTML = `<div class="status-msg">Looking up matches&hellip; this can take up to 30 seconds for a 60-day window.</div>`;
 
       try {
-        const url = "/api/matchup?a=" + encodeURIComponent(a) + "&b=" + encodeURIComponent(b);
+        const url = "/api/matchup?a=" + encodeURIComponent(a) + "&b=" + encodeURIComponent(b) +
+          "&jungleOnly=" + jungleOnly;
         const res = await fetch(url);
         const data = await res.json();
 
