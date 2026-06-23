@@ -203,6 +203,27 @@ app.get("/api/matchup", async (req, res) => {
   const riotIdA = req.query.a;
   const riotIdB = req.query.b;
   const jungleOnly = req.query.jungleOnly === "true";
+  if (
+  !riotIdA ||
+  !riotIdB ||
+  riotIdA.length > 20 ||
+  riotIdB.length > 20
+) {
+  return res.status(400).json({
+    error: "Riot ID too long (max 20 characters)"
+  });
+}const cacheKey = [
+  riotIdA.trim().toLowerCase(),
+  riotIdB.trim().toLowerCase(),
+  jungleOnly
+].join("|");
+
+const cached = matchupCache.get(cacheKey);
+
+if (cached && (Date.now() - cached.timestamp) < CACHE_TTL_MS) {
+  console.log("CACHE HIT:", cacheKey);
+  return res.json(cached.data);
+}
 
   if (!RIOT_API_KEY) {
     return res.status(500).json({ error: "Server is missing RIOT_API_KEY. Set it in your host's environment variables." });
@@ -255,18 +276,25 @@ app.get("/api/matchup", async (req, res) => {
       allyGames: matches.length - enemyGames.length,
     };
 
-    res.json({
-      riotIdA,
-      riotIdB,
-      matches,
-      record,
-      lookbackDays: LOOKBACK_DAYS,
-      truncated,
-      jungleOnly,
-      jungleMatchCount,
-      totalFetchedCount: sharedIds.length,
-      totalSharedFound,
-    });
+    const responseData = {
+  riotIdA,
+  riotIdB,
+  matches,
+  record,
+  lookbackDays: LOOKBACK_DAYS,
+  truncated,
+  jungleOnly,
+  jungleMatchCount,
+  totalFetchedCount: sharedIds.length,
+  totalSharedFound,
+};
+
+matchupCache.set(cacheKey, {
+  timestamp: Date.now(),
+  data: responseData,
+});
+
+res.json(responseData);
   } catch (err) {
     console.error(err);
     res.status(err.status || 500).json({ error: err.message || "Something went wrong." });
