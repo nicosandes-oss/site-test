@@ -200,8 +200,8 @@ app.get("/api/suggest", (req, res) => {
 // ---------------------------------------------------------------------------
 
 app.get("/api/matchup", async (req, res) => {
-  const riotIdA = req.query.a;
-  const riotIdB = req.query.b;
+  const riotIdA = req.query.a?.trim();
+  const riotIdB = req.query.b?.trim();
   const jungleOnly = req.query.jungleOnly === "true";
   if (
   !riotIdA ||
