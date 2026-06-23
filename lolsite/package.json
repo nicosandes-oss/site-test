@@ -1,0 +1,15 @@
+{
+  "name": "lol-h2h-site",
+  "version": "1.0.0",
+  "description": "Head-to-head match history lookup between two League of Legends players",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}
