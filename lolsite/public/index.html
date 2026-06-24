@@ -436,10 +436,16 @@
         const data = await res.json();
 
         if (!res.ok) {
-          champStatsResultsEl.innerHTML = `<div class="status-msg error">${data.error || "Something went wrong."}</div>`;
-        } else {
-          renderChampionStats(data, name, champDisplay);
-        }
+  champStatsResultsEl.innerHTML = `<div class="status-msg error">${data.error || "Something went wrong."}</div>`;
+} else {
+  renderChampionStats(data, name, champDisplay);
+
+  const shareUrl = new URL(window.location.href);
+  shareUrl.search = "";
+  shareUrl.searchParams.set("champName", name);
+  shareUrl.searchParams.set("champ", champDisplay);
+  window.history.replaceState({}, "", shareUrl.toString());
+}
       } catch (err) {
         champStatsResultsEl.innerHTML = `<div class="status-msg error">Network error: ${err.message}</div>`;
       } finally {
