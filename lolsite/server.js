@@ -294,6 +294,75 @@ app.get("/api/matchup", async (req, res) => {
   }
 });
 
+// ---------------------------------------------------------------------------
+// Single-player champion win/loss lookup
+// ---------------------------------------------------------------------------
+// GET /api/champion-stats?name=Name#Tag&champion=ChampionInternalName
+//
+// Champion must be the exact Data Dragon internal key (e.g. "Khazix", not
+// "Kha'Zix") — the frontend's autocomplete dropdown is what guarantees this,
+// since it's populated straight from Data Dragon's own champion list.
+app.get("/api/champion-stats", async (req, res) => {
+  const riotId = req.query.name;
+  const champion = req.query.champion;
+
+  if (!RIOT_API_KEY) {
+    return res.status(500).json({ error: "Server is missing RIOT_API_KEY. Set it in your host's environment variables." });
+  }
+  if (!riotId || !champion) {
+    return res.status(400).json({ error: "Provide both ?name=Name#Tag and ?champion=ChampionName" });
+  }
+
+  try {
+    const puuid = await getPuuid(riotId);
+    const matchIds = await getMatchIdsInWindow(puuid, LOOKBACK_DAYS);
+    const capped = matchIds.slice(0, MAX_SHARED_MATCHES_TO_FETCH);
+    const truncated = matchIds.length > MAX_SHARED_MATCHES_TO_FETCH;
+
+    let wins = 0;
+    let losses = 0;
+    const games = [];
+
+    for (const matchId of capped) {
+      const matchData = await getMatch(matchId);
+      const p = matchData.info.participants.find((pp) => pp.puuid === puuid);
+      await new Promise((r) => setTimeout(r, 50));
+
+      if (!p || p.championName !== champion) continue;
+
+      if (p.win) wins++; else losses++;
+      games.push({
+        matchId: matchData.metadata.matchId,
+        gameCreation: matchData.info.gameCreation,
+        durationMin: Math.round(matchData.info.gameDuration / 60),
+        win: p.win,
+        k: p.kills,
+        d: p.deaths,
+        a: p.assists,
+        cs: p.totalMinionsKilled + p.neutralMinionsKilled,
+      });
+    }
+
+    games.sort((g1, g2) => g2.gameCreation - g1.gameCreation);
+    recordSearchedName(riotId);
+
+    res.json({
+      riotId,
+      champion,
+      wins,
+      losses,
+      gamesPlayed: wins + losses,
+      games,
+      lookbackDays: LOOKBACK_DAYS,
+      truncated,
+      totalMatchesChecked: capped.length,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(err.status || 500).json({ error: err.message || "Something went wrong." });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
