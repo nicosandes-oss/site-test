@@ -106,7 +106,7 @@
   .accent-b { color: var(--accent-b); }
   .record-bar { height: 6px; border-radius: 3px; background: var(--accent-b);
     margin: 12px auto 0; max-width: 280px; overflow: hidden; }
-  .record-bar-fill { height: 100%; background: var(--accent-a); }
+  .record-bar-fill { height: 100%; background: var(--stripe-a-wins); }
   .record-caption { margin-top: 10px; font-size: 12px; color: var(--text-dim); }
 
   .share-row { display: flex; justify-content: center; margin-bottom: 18px; }
@@ -417,7 +417,7 @@
         </div>
         <div class="record-ticker">
           <div class="record-row">
-            <span class="accent-a">${record.aWins}</span>
+            <span style="color: var(--stripe-a-wins)">${record.aWins}</span>
             <span style="color: var(--text-dim); font-size: 22px;">&mdash;</span>
             <span class="accent-b">${record.bWins}</span>
           </div>
