@@ -295,13 +295,21 @@ app.get("/api/matchup", async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
-// Single-player champion win/loss lookup
+// Single-player win/loss split by whether a specific champion was an ally
+// or an enemy in the match
 // ---------------------------------------------------------------------------
 // GET /api/champion-stats?name=Name#Tag&champion=ChampionInternalName
 //
 // Champion must be the exact Data Dragon internal key (e.g. "Khazix", not
 // "Kha'Zix") — the frontend's autocomplete dropdown is what guarantees this,
 // since it's populated straight from Data Dragon's own champion list.
+//
+// For each of the player's recent matches, we look at all 10 participants
+// to find that champion, then bucket the game as:
+//   - "with"    — the champion was on the player's own team (an ally)
+//   - "against" — the champion was on the enemy team
+//   - skipped   — the player themselves was the one playing that champion,
+//                 or the champion didn't appear in the match at all
 app.get("/api/champion-stats", async (req, res) => {
   const riotId = req.query.name;
   const champion = req.query.champion;
@@ -319,27 +327,40 @@ app.get("/api/champion-stats", async (req, res) => {
     const capped = matchIds.slice(0, MAX_SHARED_MATCHES_TO_FETCH);
     const truncated = matchIds.length > MAX_SHARED_MATCHES_TO_FETCH;
 
-    let wins = 0;
-    let losses = 0;
+    const withTeam = { wins: 0, losses: 0 };
+    const against = { wins: 0, losses: 0 };
     const games = [];
 
     for (const matchId of capped) {
       const matchData = await getMatch(matchId);
-      const p = matchData.info.participants.find((pp) => pp.puuid === puuid);
       await new Promise((r) => setTimeout(r, 50));
 
-      if (!p || p.championName !== champion) continue;
+      const self = matchData.info.participants.find((pp) => pp.puuid === puuid);
+      if (!self) continue;
 
-      if (p.win) wins++; else losses++;
+      // Self played this champion — excluded from both buckets per the
+      // feature's definition (this stat is about facing/playing alongside
+      // the champion, not piloting it themselves).
+      if (self.championName === champion) continue;
+
+      const champPlayer = matchData.info.participants.find((pp) => pp.championName === champion);
+      if (!champPlayer) continue; // champion wasn't in this match at all
+
+      const isAlly = champPlayer.teamId === self.teamId;
+      const bucket = isAlly ? withTeam : against;
+      if (self.win) bucket.wins++; else bucket.losses++;
+
       games.push({
         matchId: matchData.metadata.matchId,
         gameCreation: matchData.info.gameCreation,
         durationMin: Math.round(matchData.info.gameDuration / 60),
-        win: p.win,
-        k: p.kills,
-        d: p.deaths,
-        a: p.assists,
-        cs: p.totalMinionsKilled + p.neutralMinionsKilled,
+        relation: isAlly ? "with" : "against",
+        win: self.win,
+        selfChampion: self.championName,
+        k: self.kills,
+        d: self.deaths,
+        a: self.assists,
+        cs: self.totalMinionsKilled + self.neutralMinionsKilled,
       });
     }
 
@@ -349,9 +370,8 @@ app.get("/api/champion-stats", async (req, res) => {
     res.json({
       riotId,
       champion,
-      wins,
-      losses,
-      gamesPlayed: wins + losses,
+      withTeam,
+      against,
       games,
       lookbackDays: LOOKBACK_DAYS,
       truncated,
