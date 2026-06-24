@@ -143,6 +143,23 @@
 
   .match-detail { border-top: 1px solid var(--hairline); padding: 16px; background: var(--bg); }
   .detail-relation { font-size: 12px; color: var(--text-dim); text-align: center; margin-bottom: 16px; }
+
+  .objectives-block {
+    background: var(--surface); border: 1px solid var(--hairline); border-radius: 10px;
+    padding: 12px 14px; margin-bottom: 16px;
+  }
+  .objectives-title {
+    font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
+    color: var(--text-dim); margin-bottom: 8px; text-align: center;
+  }
+  .objectives-stats { display: flex; justify-content: center; gap: 22px; }
+  .obj-stat { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+  .obj-label { font-size: 10px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.03em; }
+  .obj-value { font-size: 16px; font-weight: 800; }
+  .objectives-split { display: flex; justify-content: space-between; gap: 16px; }
+  .objectives-side { flex: 1; }
+  .objectives-side.right .objectives-title { text-align: center; }
+
   .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
   .detail-player { display: flex; flex-direction: column; gap: 10px; }
   .detail-player.right { align-items: flex-end; text-align: right; }
@@ -367,6 +384,54 @@
       `;
     }
 
+    function objStat(label, value) {
+      // grubs can be null if Riot's data for this match didn't include the field
+      const display = value === null || value === undefined ? "—" : value;
+      return `<div class="obj-stat"><span class="obj-label">${label}</span><span class="obj-value">${display}</span></div>`;
+    }
+
+    function objectivesRow(m, nameA, nameB) {
+      if (!m.objectives) return "";
+
+      if (m.sameTeam) {
+        // Same team — both players share identical team totals, show once.
+        const o = m.objectives.a;
+        return `
+          <div class="objectives-block">
+            <div class="objectives-title">Team objectives</div>
+            <div class="objectives-stats">
+              ${objStat("Dragons", o.dragons)}
+              ${objStat("Baron", o.barons)}
+              ${objStat("Voidgrubs", o.grubs)}
+            </div>
+          </div>
+        `;
+      }
+
+      // Opponents — show each side's team totals under their own name,
+      // matching the left/right layout used everywhere else.
+      return `
+        <div class="objectives-block objectives-split">
+          <div class="objectives-side">
+            <div class="objectives-title" style="color:var(--accent-a)">${nameA}'s team</div>
+            <div class="objectives-stats">
+              ${objStat("Dragons", m.objectives.a.dragons)}
+              ${objStat("Baron", m.objectives.a.barons)}
+              ${objStat("Grubs", m.objectives.a.grubs)}
+            </div>
+          </div>
+          <div class="objectives-side right">
+            <div class="objectives-title" style="color:var(--accent-b)">${nameB}'s team</div>
+            <div class="objectives-stats">
+              ${objStat("Dragons", m.objectives.b.dragons)}
+              ${objStat("Baron", m.objectives.b.barons)}
+              ${objStat("Grubs", m.objectives.b.grubs)}
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
     function matchCardHtml(m, nameA, nameB, index) {
       const stripe = m.sameTeam
         ? (m.a.win ? "var(--win)" : "var(--loss)")
@@ -397,6 +462,7 @@
               ${queueLabel} &middot; ${m.sameTeam ? `${nameA} and ${nameB} were teammates` : `${nameA} and ${nameB} were opponents`}
               ${m.bothJungle ? ` &middot; <span style="color:var(--gold)">both jungling</span>` : ""}
             </div>
+            ${objectivesRow(m, nameA, nameB)}
             <div class="detail-grid">
               ${detailPlayer(nameA, m.a, "a")}
               ${detailPlayer(nameB, m.b, "b")}
