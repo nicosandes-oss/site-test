@@ -428,7 +428,7 @@
 
       champStatsBtn.disabled = true;
       champStatsBtn.textContent = "Checking...";
-      champStatsResultsEl.innerHTML = `<div class="status-msg">Checking recent games on ${champDisplay}&hellip; this can take a little while.</div>`;
+      champStatsResultsEl.innerHTML = `<div class="status-msg">Checking recent games involving ${champDisplay}&hellip; this can take a little while.</div>`;
 
       try {
         const url = "/api/champion-stats?name=" + encodeURIComponent(name) + "&champion=" + encodeURIComponent(champId);
@@ -448,30 +448,51 @@
       }
     }
 
-    function renderChampionStats(data, name, champDisplay) {
-      const { wins, losses, gamesPlayed, lookbackDays, truncated } = data;
-
-      if (gamesPlayed === 0) {
-        champStatsResultsEl.innerHTML = `<div class="status-msg">No games found on ${champDisplay} in the last ${lookbackDays} days.</div>`;
-        return;
+    function buildWrBar(label, sublabel, bucket) {
+      const total = bucket.wins + bucket.losses;
+      if (total === 0) {
+        return `
+          <div class="wr-bar-block">
+            <div class="wr-bar-header">
+              <div>
+                <span class="wr-bar-name">${label}</span>
+                <span class="wr-bar-champ">${sublabel}</span>
+              </div>
+            </div>
+            <div class="wr-bar-caption">No games found in this category</div>
+          </div>
+        `;
       }
-
-      const winPct = Math.round((wins / gamesPlayed) * 100);
-
-      champStatsResultsEl.innerHTML = `
+      const pct = Math.round((bucket.wins / total) * 100);
+      return `
         <div class="wr-bar-block">
           <div class="wr-bar-header">
             <div>
-              <span class="wr-bar-name">${name}</span>
-              <span class="wr-bar-champ">on ${champDisplay}</span>
+              <span class="wr-bar-name">${label}</span>
+              <span class="wr-bar-champ">${sublabel}</span>
             </div>
-            <span class="wr-bar-pct" style="color: ${winPct >= 50 ? "var(--win)" : "var(--loss)"}">${winPct}%</span>
+            <span class="wr-bar-pct" style="color: ${pct >= 50 ? "var(--win)" : "var(--loss)"}">${pct}%</span>
           </div>
-          <div class="wr-bar-track"><div class="wr-bar-fill" style="width:${winPct}%"></div></div>
-          <div class="wr-bar-caption">
-            ${wins}W &ndash; ${losses}L over ${gamesPlayed} game${gamesPlayed === 1 ? "" : "s"} &middot; last ${lookbackDays} days
-            ${truncated ? " &middot; showing most recent matches checked" : ""}
-          </div>
+          <div class="wr-bar-track"><div class="wr-bar-fill" style="width:${pct}%"></div></div>
+          <div class="wr-bar-caption">${bucket.wins}W &ndash; ${bucket.losses}L over ${total} game${total === 1 ? "" : "s"}</div>
+        </div>
+      `;
+    }
+
+    function renderChampionStats(data, name, champDisplay) {
+      const { withTeam, against, lookbackDays, truncated } = data;
+      const totalGames = withTeam.wins + withTeam.losses + against.wins + against.losses;
+
+      if (totalGames === 0) {
+        champStatsResultsEl.innerHTML = `<div class="status-msg">No games found involving ${champDisplay} (as an ally or enemy) in the last ${lookbackDays} days.</div>`;
+        return;
+      }
+
+      champStatsResultsEl.innerHTML = `
+        ${buildWrBar(name, `with ${champDisplay} on their team`, withTeam)}
+        ${buildWrBar(name, `against ${champDisplay}`, against)}
+        <div class="wr-bar-caption" style="margin-top: 4px;">
+          last ${lookbackDays} days ${truncated ? " &middot; showing most recent matches checked" : ""}
         </div>
       `;
     }
