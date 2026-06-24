@@ -27,11 +27,7 @@ const LOOKBACK_DAYS = parseInt(process.env.LOOKBACK_DAYS || "60", 10);
 // Safety ceiling so one lookup can't run away and chew through the whole
 // rate-limit budget if two players share an unusually large number of games.
 const MAX_SHARED_MATCHES_TO_FETCH = 60;
-// ---------------------------------------------------------------------------
-// Matchup cache
-// ---------------------------------------------------------------------------
-const matchupCache = new Map();
-const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
 // ---------------------------------------------------------------------------
 // Search history (autocomplete suggestions)
 // ---------------------------------------------------------------------------
@@ -175,8 +171,33 @@ function extractHeadToHead(matchData, puuidA, puuidB) {
     gameMode: info.gameMode,
     sameTeam: pA.teamId === pB.teamId,
     bothJungle: a.isJungle && b.isJungle,
+    objectives: {
+      a: teamObjectivesFor(info.teams, pA.teamId),
+      b: teamObjectivesFor(info.teams, pB.teamId),
+    },
     a,
     b,
+  };
+}
+
+// Pulls dragon/baron/grub kill counts for whichever team a given player
+// was on. Dragon and Baron are long-stable fields on every match.
+// Voidgrubs are newer (added patch 14.1) — Riot's internal field name for
+// this camp has historically been "horde" in match data, but since this is
+// a newer objective we read it defensively and simply omit it from the
+// response if the field isn't present, rather than risk showing a broken
+// "undefined" stat on the page.
+function teamObjectivesFor(teams, teamId) {
+  const team = teams.find((t) => t.teamId === teamId);
+  if (!team || !team.objectives) return { dragons: 0, barons: 0, grubs: null };
+
+  const obj = team.objectives;
+  const grubsField = obj.horde || obj.voidgrub || obj.hordeKills;
+
+  return {
+    dragons: obj.dragon ? obj.dragon.kills : 0,
+    barons: obj.baron ? obj.baron.kills : 0,
+    grubs: grubsField ? grubsField.kills : null, // null = field not present in this match's data
   };
 }
 
@@ -200,30 +221,9 @@ app.get("/api/suggest", (req, res) => {
 // ---------------------------------------------------------------------------
 
 app.get("/api/matchup", async (req, res) => {
-  const riotIdA = req.query.a?.trim();
-  const riotIdB = req.query.b?.trim();
+  const riotIdA = req.query.a;
+  const riotIdB = req.query.b;
   const jungleOnly = req.query.jungleOnly === "true";
-  if (
-  !riotIdA ||
-  !riotIdB ||
-  riotIdA.length > 20 ||
-  riotIdB.length > 20
-) {
-  return res.status(400).json({
-    error: "Riot ID too long (max 20 characters)"
-  });
-}const cacheKey = [
-  riotIdA.trim().toLowerCase(),
-  riotIdB.trim().toLowerCase(),
-  jungleOnly
-].join("|");
-
-const cached = matchupCache.get(cacheKey);
-
-if (cached && (Date.now() - cached.timestamp) < CACHE_TTL_MS) {
-  console.log("CACHE HIT:", cacheKey);
-  return res.json(cached.data);
-}
 
   if (!RIOT_API_KEY) {
     return res.status(500).json({ error: "Server is missing RIOT_API_KEY. Set it in your host's environment variables." });
@@ -276,25 +276,18 @@ if (cached && (Date.now() - cached.timestamp) < CACHE_TTL_MS) {
       allyGames: matches.length - enemyGames.length,
     };
 
-    const responseData = {
-  riotIdA,
-  riotIdB,
-  matches,
-  record,
-  lookbackDays: LOOKBACK_DAYS,
-  truncated,
-  jungleOnly,
-  jungleMatchCount,
-  totalFetchedCount: sharedIds.length,
-  totalSharedFound,
-};
-
-matchupCache.set(cacheKey, {
-  timestamp: Date.now(),
-  data: responseData,
-});
-
-res.json(responseData);
+    res.json({
+      riotIdA,
+      riotIdB,
+      matches,
+      record,
+      lookbackDays: LOOKBACK_DAYS,
+      truncated,
+      jungleOnly,
+      jungleMatchCount,
+      totalFetchedCount: sharedIds.length,
+      totalSharedFound,
+    });
   } catch (err) {
     console.error(err);
     res.status(err.status || 500).json({ error: err.message || "Something went wrong." });
