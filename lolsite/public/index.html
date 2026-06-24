@@ -17,6 +17,7 @@
     --win: #3FCB7C;
     --loss: #FF5C68;
     --gold: #D9A441;
+    --stripe-a-wins: #E8C547;
   }
   * { box-sizing: border-box; }
   body {
@@ -369,9 +370,8 @@
     function matchCardHtml(m, nameA, nameB, index) {
       const stripe = m.sameTeam
         ? (m.a.win ? "var(--win)" : "var(--loss)")
-        : (m.a.win ? "var(--accent-a)" : "var(--accent-b)");
+        : (m.a.win ? "var(--stripe-a-wins)" : "var(--accent-b)");
       const queueLabel = QUEUE_NAMES[m.queueId] || m.gameMode || "Custom";
-      const teamLabel = m.sameTeam ? "Same Team" : "Enemies";
 
       return `
         <div class="match-card">
@@ -394,11 +394,7 @@
           </button>
           <div class="match-detail" id="detail-${index}" style="display:none">
             <div class="detail-relation">
-              ${queueLabel} &middot; 
-              <strong>${m.sameTeam ? "Same Team" : "Enemies"}</strong> &middot;
-              ${m.sameTeam 
-                ? `${nameA} and ${nameB} were teammates`
-                : `${nameA} and ${nameB} were opponents`}
+              ${queueLabel} &middot; ${m.sameTeam ? `${nameA} and ${nameB} were teammates` : `${nameA} and ${nameB} were opponents`}
               ${m.bothJungle ? ` &middot; <span style="color:var(--gold)">both jungling</span>` : ""}
             </div>
             <div class="detail-grid">
