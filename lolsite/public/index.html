@@ -41,6 +41,33 @@
     border-radius: 16px;
     padding: 28px 22px 24px;
   }
+
+  .champ-stats-card {
+    background: linear-gradient(180deg, var(--surface-raised), var(--surface));
+    border: 1px solid var(--hairline);
+    border-radius: 16px;
+    padding: 24px 22px;
+    margin-top: 32px;
+  }
+  .champ-stats-title {
+    text-align: center; font-size: 13px; font-weight: 700; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--gold); margin-bottom: 18px;
+  }
+  .champ-stats-row {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 18px;
+  }
+  .wr-bar-block { margin-top: 18px; }
+  .wr-bar-header {
+    display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px;
+  }
+  .wr-bar-name { font-size: 14px; font-weight: 700; }
+  .wr-bar-champ { font-size: 13px; color: var(--text-dim); }
+  .wr-bar-pct { font-size: 22px; font-weight: 900; font-style: italic; }
+  .wr-bar-track {
+    height: 10px; border-radius: 5px; background: var(--loss); overflow: hidden;
+  }
+  .wr-bar-fill { height: 100%; background: var(--win); }
+  .wr-bar-caption { margin-top: 8px; font-size: 12px; color: var(--text-dim); text-align: center; }
   .matchup-row {
     display: grid; grid-template-columns: 1fr auto 1fr;
     align-items: center; gap: 14px;
@@ -194,6 +221,7 @@
     .detail-player.right .detail-head { flex-direction: row; }
     .detail-player.right .stat-grid { direction: ltr; }
     .detail-player.right .item-row { justify-content: flex-start; }
+    .champ-stats-row { grid-template-columns: 1fr; }
   }
 </style>
 </head>
@@ -225,6 +253,24 @@
     </div>
 
     <div class="results" id="results"></div>
+
+    <div class="champ-stats-card">
+      <div class="champ-stats-title">Summoner's WR on specific champ</div>
+      <div class="champ-stats-row">
+        <div class="input-wrap">
+          <span class="fighter-label" style="color: var(--text-dim)">Summoner</span>
+          <div class="fighter-field"><input id="champStatsName" type="text" placeholder="Name#Tag" autocomplete="off" /></div>
+          <div class="suggest-list" id="suggestChampName"></div>
+        </div>
+        <div class="input-wrap">
+          <span class="fighter-label" style="color: var(--text-dim)">Champion</span>
+          <div class="fighter-field"><input id="champStatsChamp" type="text" placeholder="Champion" autocomplete="off" /></div>
+          <div class="suggest-list" id="suggestChamp"></div>
+        </div>
+      </div>
+      <button class="search-btn" id="champStatsBtn">Check win rate</button>
+      <div id="champStatsResults"></div>
+    </div>
   </div>
 
   <script>
@@ -237,18 +283,18 @@
 
     // ---------------------------------------------------------------------
     // Autocomplete — suggestions come from names other people have
-    // successfully searched before (server keeps this in memory).
+    // successfully searched before (server keeps this in memory), or from
+    // a fixed local list (used for the champion picker below).
     // ---------------------------------------------------------------------
-    function wireAutocomplete(input, listEl) {
+    function wireAutocomplete(input, listEl, getSuggestions) {
       let debounceTimer = null;
       let activeIndex = -1;
 
       async function fetchAndShow() {
         const q = input.value.trim();
         try {
-          const res = await fetch("/api/suggest?q=" + encodeURIComponent(q));
-          const data = await res.json();
-          renderSuggestions(data.suggestions || []);
+          const suggestions = await getSuggestions(q);
+          renderSuggestions(suggestions || []);
         } catch (err) {
           listEl.classList.remove("open");
         }
@@ -309,15 +355,30 @@
       });
     }
 
-    wireAutocomplete(nameAInput, suggestA);
-    wireAutocomplete(nameBInput, suggestB);
+    async function fetchNameSuggestions(q) {
+      const res = await fetch("/api/suggest?q=" + encodeURIComponent(q));
+      const data = await res.json();
+      return data.suggestions || [];
+    }
+
+    wireAutocomplete(nameAInput, suggestA, fetchNameSuggestions);
+    wireAutocomplete(nameBInput, suggestB, fetchNameSuggestions);
 
     // Data Dragon version is fetched once per page load so icons never
     // point at a stale patch number.
     let ddragonVersion = "14.1.1"; // fallback if the version fetch fails
+    let championList = []; // [{ id: "Khazix", name: "Kha'Zix" }, ...] populated below
+
     fetch("https://ddragon.leagueoflegends.com/api/versions.json")
       .then((r) => r.json())
-      .then((versions) => { ddragonVersion = versions[0]; })
+      .then((versions) => {
+        ddragonVersion = versions[0];
+        return fetch(`https://ddragon.leagueoflegends.com/cdn/${ddragonVersion}/data/en_US/champion.json`);
+      })
+      .then((r) => r.json())
+      .then((data) => {
+        championList = Object.values(data.data).map((c) => ({ id: c.id, name: c.name }));
+      })
       .catch(() => {});
 
     function champIconUrl(championName) {
@@ -326,6 +387,99 @@
     function itemIconUrl(itemId) {
       return `https://ddragon.leagueoflegends.com/cdn/${ddragonVersion}/img/item/${itemId}.png`;
     }
+
+    // ---------------------------------------------------------------------
+    // Champion win/loss lookup
+    // ---------------------------------------------------------------------
+    const champStatsNameInput = document.getElementById("champStatsName");
+    const champStatsChampInput = document.getElementById("champStatsChamp");
+    const champStatsBtn = document.getElementById("champStatsBtn");
+    const champStatsResultsEl = document.getElementById("champStatsResults");
+    const suggestChampName = document.getElementById("suggestChampName");
+    const suggestChamp = document.getElementById("suggestChamp");
+
+    wireAutocomplete(champStatsNameInput, suggestChampName, fetchNameSuggestions);
+
+    function fetchChampionSuggestions(q) {
+      if (!q) return championList.slice(0, 8).map((c) => c.name);
+      const lower = q.toLowerCase();
+      return championList
+        .filter((c) => c.name.toLowerCase().includes(lower))
+        .slice(0, 8)
+        .map((c) => c.name);
+    }
+    wireAutocomplete(champStatsChampInput, suggestChamp, fetchChampionSuggestions);
+
+    function championIdFromDisplayName(displayName) {
+      const match = championList.find((c) => c.name.toLowerCase() === displayName.trim().toLowerCase());
+      return match ? match.id : null;
+    }
+
+    async function searchChampionStats() {
+      const name = champStatsNameInput.value.trim();
+      const champDisplay = champStatsChampInput.value.trim();
+      if (!name || !champDisplay) return;
+
+      const champId = championIdFromDisplayName(champDisplay);
+      if (!champId) {
+        champStatsResultsEl.innerHTML = `<div class="status-msg error">Pick a champion from the dropdown so the name matches exactly.</div>`;
+        return;
+      }
+
+      champStatsBtn.disabled = true;
+      champStatsBtn.textContent = "Checking...";
+      champStatsResultsEl.innerHTML = `<div class="status-msg">Checking recent games on ${champDisplay}&hellip; this can take a little while.</div>`;
+
+      try {
+        const url = "/api/champion-stats?name=" + encodeURIComponent(name) + "&champion=" + encodeURIComponent(champId);
+        const res = await fetch(url);
+        const data = await res.json();
+
+        if (!res.ok) {
+          champStatsResultsEl.innerHTML = `<div class="status-msg error">${data.error || "Something went wrong."}</div>`;
+        } else {
+          renderChampionStats(data, name, champDisplay);
+        }
+      } catch (err) {
+        champStatsResultsEl.innerHTML = `<div class="status-msg error">Network error: ${err.message}</div>`;
+      } finally {
+        champStatsBtn.disabled = false;
+        champStatsBtn.textContent = "Check win rate";
+      }
+    }
+
+    function renderChampionStats(data, name, champDisplay) {
+      const { wins, losses, gamesPlayed, lookbackDays, truncated } = data;
+
+      if (gamesPlayed === 0) {
+        champStatsResultsEl.innerHTML = `<div class="status-msg">No games found on ${champDisplay} in the last ${lookbackDays} days.</div>`;
+        return;
+      }
+
+      const winPct = Math.round((wins / gamesPlayed) * 100);
+
+      champStatsResultsEl.innerHTML = `
+        <div class="wr-bar-block">
+          <div class="wr-bar-header">
+            <div>
+              <span class="wr-bar-name">${name}</span>
+              <span class="wr-bar-champ">on ${champDisplay}</span>
+            </div>
+            <span class="wr-bar-pct" style="color: ${winPct >= 50 ? "var(--win)" : "var(--loss)"}">${winPct}%</span>
+          </div>
+          <div class="wr-bar-track"><div class="wr-bar-fill" style="width:${winPct}%"></div></div>
+          <div class="wr-bar-caption">
+            ${wins}W &ndash; ${losses}L over ${gamesPlayed} game${gamesPlayed === 1 ? "" : "s"} &middot; last ${lookbackDays} days
+            ${truncated ? " &middot; showing most recent matches checked" : ""}
+          </div>
+        </div>
+      `;
+    }
+
+    champStatsBtn.addEventListener("click", searchChampionStats);
+    [champStatsNameInput, champStatsChampInput].forEach((el) =>
+      el.addEventListener("keydown", (e) => { if (e.key === "Enter") searchChampionStats(); })
+    );
 
     const QUEUE_NAMES = {
       400: "Normal Draft", 420: "Ranked Solo/Duo", 430: "Normal Blind",
