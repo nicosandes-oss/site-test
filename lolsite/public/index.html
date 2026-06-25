@@ -12,12 +12,12 @@
     --hairline: #262E3F;
     --text: #E8EAEF;
     --text-dim: #8993A8;
-    --accent-a: #A78BFA;
-    --accent-b: #34D6D1;
-    --win: #3FCB7C;
-    --loss: #FF5C68;
-    --gold: #D9A441;
-    --stripe-a-wins: #A78BFA;
+    --accent-a: #E63DD8;
+    --accent-b: #2E9BF0;
+    --win: #1FD16B;
+    --loss: #FF3B5C;
+    --gold: #F2A93B;
+    --stripe-a-wins: #E63DD8;
   }
   * { box-sizing: border-box; }
   body {
@@ -145,8 +145,14 @@
   .copy-link-btn:hover { background: var(--surface-raised); }
   .copy-link-btn.copied { color: var(--win); border-color: var(--win); }
 
-  .section-label { font-size: 12px; font-weight: 700; letter-spacing: 0.08em;
-    text-transform: uppercase; color: var(--text-dim); margin: 0 0 10px 4px; }
+  .collapse-header {
+    width: 100%; display: flex; align-items: center; justify-content: space-between;
+    cursor: pointer; background: var(--surface); border: 1px solid var(--hairline);
+    border-radius: 10px; padding: 12px 16px; margin-bottom: 14px; font-family: inherit;
+  }
+  .collapse-header:hover { background: var(--surface-raised); }
+  .collapse-title { font-size: 13px; font-weight: 700; color: var(--text); letter-spacing: 0.02em; }
+  .chevron-big { font-size: 14px; color: var(--text-dim); }
 
   .match-card { background: var(--surface); border: 1px solid var(--hairline); border-radius: 12px;
     margin-bottom: 8px; overflow: hidden; }
@@ -197,7 +203,6 @@
   .detail-champ { font-size: 14px; font-weight: 800; }
   .detail-position { font-size: 10px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.04em; }
   .detail-kda { font-size: 16px; font-weight: 800; }
-  .detail-kda-sub { font-size: 11px; color: var(--text-dim); }
   .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 14px; font-size: 12px; width: 100%; }
   .detail-player.right .stat-grid { direction: rtl; }
   .stat-row { display: flex; justify-content: space-between; color: var(--text-dim); gap: 8px; }
@@ -708,11 +713,29 @@
       if (matches.length === 0) {
         html += `<div class="status-msg">${jungleOnly ? "No shared games found where both were jungling" : "No shared matches found"} in the last ${lookbackDays} days.</div>`;
       } else {
-        html += `<div class="section-label">Shared matches &middot; ${matches.length}</div>`;
+        html += `
+          <button class="collapse-header" id="matchesCollapseToggle">
+            <span class="collapse-title">Shared matches &middot; ${matches.length}</span>
+            <span class="chevron-big" id="matchesCollapseChevron">&#9650;</span>
+          </button>
+          <div id="matchesListContainer">
+        `;
         matches.forEach((m, i) => { html += matchCardHtml(m, nameA, nameB, i); });
+        html += `</div>`;
       }
 
       resultsEl.innerHTML = html;
+
+      const collapseToggle = document.getElementById("matchesCollapseToggle");
+      if (collapseToggle) {
+        collapseToggle.addEventListener("click", () => {
+          const list = document.getElementById("matchesListContainer");
+          const chevron = document.getElementById("matchesCollapseChevron");
+          const isOpen = list.style.display !== "none";
+          list.style.display = isOpen ? "none" : "block";
+          chevron.innerHTML = isOpen ? "&#9660;" : "&#9650;";
+        });
+      }
 
       const copyBtn = document.getElementById("copyLinkBtn");
       copyBtn.addEventListener("click", () => {
