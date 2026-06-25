@@ -12,12 +12,12 @@
     --hairline: #262E3F;
     --text: #E8EAEF;
     --text-dim: #8993A8;
-    --accent-a: #FF5C68;
+    --accent-a: #A78BFA;
     --accent-b: #34D6D1;
     --win: #3FCB7C;
     --loss: #FF5C68;
     --gold: #D9A441;
-    --stripe-a-wins: #E8C547;
+    --stripe-a-wins: #A78BFA;
   }
   * { box-sizing: border-box; }
   body {
@@ -369,7 +369,7 @@
     let ddragonVersion = "14.1.1"; // fallback if the version fetch fails
     let championList = []; // [{ id: "Khazix", name: "Kha'Zix" }, ...] populated below
 
-    fetch("https://ddragon.leagueoflegends.com/api/versions.json")
+    const championListReady = fetch("https://ddragon.leagueoflegends.com/api/versions.json")
       .then((r) => r.json())
       .then((versions) => {
         ddragonVersion = versions[0];
@@ -436,16 +436,15 @@
         const data = await res.json();
 
         if (!res.ok) {
-  champStatsResultsEl.innerHTML = `<div class="status-msg error">${data.error || "Something went wrong."}</div>`;
-} else {
-  renderChampionStats(data, name, champDisplay);
-
-  const shareUrl = new URL(window.location.href);
-  shareUrl.search = "";
-  shareUrl.searchParams.set("champName", name);
-  shareUrl.searchParams.set("champ", champDisplay);
-  window.history.replaceState({}, "", shareUrl.toString());
-}
+          champStatsResultsEl.innerHTML = `<div class="status-msg error">${data.error || "Something went wrong."}</div>`;
+        } else {
+          renderChampionStats(data, name, champDisplay);
+          const shareUrl = new URL(window.location.href);
+          shareUrl.search = "";
+          shareUrl.searchParams.set("champName", name);
+          shareUrl.searchParams.set("champ", champDisplay);
+          window.history.replaceState({}, "", shareUrl.toString());
+        }
       } catch (err) {
         champStatsResultsEl.innerHTML = `<div class="status-msg error">Network error: ${err.message}</div>`;
       } finally {
@@ -495,12 +494,34 @@
       }
 
       champStatsResultsEl.innerHTML = `
+        <div class="share-row">
+          <button class="copy-link-btn" id="champStatsCopyBtn">Copy link to this result</button>
+        </div>
         ${buildWrBar(name, `with ${champDisplay} on their team`, withTeam)}
         ${buildWrBar(name, `against ${champDisplay}`, against)}
         <div class="wr-bar-caption" style="margin-top: 4px;">
           last ${lookbackDays} days ${truncated ? " &middot; showing most recent matches checked" : ""}
         </div>
       `;
+
+      const copyBtn = document.getElementById("champStatsCopyBtn");
+      copyBtn.addEventListener("click", () => {
+        const shareUrl = new URL(window.location.href);
+        shareUrl.search = "";
+        shareUrl.searchParams.set("champName", name);
+        shareUrl.searchParams.set("champ", champDisplay);
+
+        navigator.clipboard.writeText(shareUrl.toString()).then(() => {
+          copyBtn.textContent = "Link copied";
+          copyBtn.classList.add("copied");
+          setTimeout(() => {
+            copyBtn.textContent = "Copy link to this result";
+            copyBtn.classList.remove("copied");
+          }, 2000);
+        }).catch(() => {
+          copyBtn.textContent = "Couldn't copy — copy from address bar";
+        });
+      });
     }
 
     champStatsBtn.addEventListener("click", searchChampionStats);
@@ -780,6 +801,16 @@
           document.getElementById("jungleOnly").checked = true;
         }
         search();
+      }
+
+      const champName = params.get("champName");
+      const champ = params.get("champ");
+      if (champName && champ) {
+        champStatsNameInput.value = champName;
+        champStatsChampInput.value = champ;
+        // championIdFromDisplayName needs the Data Dragon list loaded first,
+        // or a freshly-opened shared link would silently fail to match.
+        championListReady.then(() => searchChampionStats());
       }
     })();
   </script>
