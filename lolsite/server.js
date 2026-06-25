@@ -329,7 +329,6 @@ app.get("/api/champion-stats", async (req, res) => {
 
     const withTeam = { wins: 0, losses: 0 };
     const against = { wins: 0, losses: 0 };
-    const games = [];
 
     for (const matchId of capped) {
       const matchData = await getMatch(matchId);
@@ -349,22 +348,8 @@ app.get("/api/champion-stats", async (req, res) => {
       const isAlly = champPlayer.teamId === self.teamId;
       const bucket = isAlly ? withTeam : against;
       if (self.win) bucket.wins++; else bucket.losses++;
-
-      games.push({
-        matchId: matchData.metadata.matchId,
-        gameCreation: matchData.info.gameCreation,
-        durationMin: Math.round(matchData.info.gameDuration / 60),
-        relation: isAlly ? "with" : "against",
-        win: self.win,
-        selfChampion: self.championName,
-        k: self.kills,
-        d: self.deaths,
-        a: self.assists,
-        cs: self.totalMinionsKilled + self.neutralMinionsKilled,
-      });
     }
 
-    games.sort((g1, g2) => g2.gameCreation - g1.gameCreation);
     recordSearchedName(riotId);
 
     res.json({
@@ -372,7 +357,6 @@ app.get("/api/champion-stats", async (req, res) => {
       champion,
       withTeam,
       against,
-      games,
       lookbackDays: LOOKBACK_DAYS,
       truncated,
       totalMatchesChecked: capped.length,
