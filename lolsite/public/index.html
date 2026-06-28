@@ -228,6 +228,42 @@
     .detail-player.right .item-row { justify-content: flex-start; }
     .champ-stats-row { grid-template-columns: 1fr; }
   }
+  footer {
+  margin-top: 4rem;
+  border-top: 1px solid #2a2a3a;
+  padding: 2rem 1.5rem;
+  background: transparent;
+}
+
+.footer-inner {
+  max-width: 720px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+footer p {
+  font-size: 0.72rem;
+  line-height: 1.6;
+  color: #666;
+  margin: 0;
+  text-align: center;
+}
+
+.footer-disclaimer {
+  color: #555;
+}
+
+.footer-privacy strong {
+  color: #888;
+}
+
+.footer-meta {
+  color: #444;
+  font-size: 0.65rem;
+  letter-spacing: 0.04em;
+}
 </style>
 </head>
 <body>
@@ -837,5 +873,18 @@
       }
     })();
   </script>
+<footer>
+  <div class="footer-inner">
+    <p class="footer-disclaimer">
+      LeaguesPvPwr isn't endorsed by Riot Games and doesn't reflect the views or opinions of Riot Games or anyone officially involved in producing or managing Riot Games properties. Riot Games, and all associated properties are trademarks or registered trademarks of Riot Games, Inc.
+    </p>
+    <p class="footer-privacy">
+      <strong>Privacy:</strong> This site doesn't use cookies, accounts, or tracking. Search inputs are processed in memory and not stored. Standard hosting logs (IP addresses, request timestamps) are retained by Render as part of normal server operation.
+    </p>
+    <p class="footer-meta">
+      LeaguesPvPwr · Fan project · Not affiliated with Riot Games
+    </p>
+  </div>
+</footer>
 </body>
 </html>
