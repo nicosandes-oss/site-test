@@ -116,6 +116,16 @@
   }
   .jungle-toggle input { accent-color: var(--gold); width: 15px; height: 15px; cursor: pointer; }
   .jungle-toggle em { color: var(--text-dim); font-style: normal; opacity: 0.7; font-size: 12px; }
+  .region-row {
+    display: flex; align-items: center; gap: 8px; justify-content: center; margin-top: 10px;
+  }
+  .region-label { font-size: 12px; color: var(--text-dim); font-weight: 600; }
+  .region-select {
+    background: var(--bg); border: 1px solid var(--hairline); border-radius: 6px;
+    color: var(--text); font-size: 12px; padding: 4px 8px; font-family: inherit;
+    cursor: pointer;
+  }
+  .region-select:focus { outline: none; border-color: var(--gold); }
   .hint { text-align: center; font-size: 12px; color: var(--text-dim); margin-top: 12px; }
 
   .results { margin-top: 28px; }
@@ -228,48 +238,12 @@
     .detail-player.right .item-row { justify-content: flex-start; }
     .champ-stats-row { grid-template-columns: 1fr; }
   }
-  footer {
-  margin-top: 4rem;
-  border-top: 1px solid #2a2a3a;
-  padding: 2rem 1.5rem;
-  background: transparent;
-}
-
-.footer-inner {
-  max-width: 720px;
-  margin: 0 auto;
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-footer p {
-  font-size: 0.72rem;
-  line-height: 1.6;
-  color: #666;
-  margin: 0;
-  text-align: center;
-}
-
-.footer-disclaimer {
-  color: #555;
-}
-
-.footer-privacy strong {
-  color: #888;
-}
-
-.footer-meta {
-  color: #444;
-  font-size: 0.65rem;
-  letter-spacing: 0.04em;
-}
 </style>
 </head>
 <body>
   <div class="shell">
     <div class="eyebrow">League of Legends</div>
-    <h1>LoL Rivals</h1>
+    <h1>Leagues<span>PvPwr</span></h1>
 
     <div class="hero-card">
       <div class="matchup-row">
@@ -290,6 +264,15 @@ footer p {
         <input type="checkbox" id="jungleOnly" />
         <span>Jungle vs jungle only <em>(both on Smite)</em></span>
       </label>
+      <div class="region-row">
+        <span class="region-label">Region</span>
+        <select id="regionSelect" class="region-select">
+          <option value="americas">NA / BR / LAN / LAS</option>
+          <option value="europe">EUW / EUNE / TR / RU</option>
+          <option value="asia">KR / JP</option>
+          <option value="sea">OCE / SEA</option>
+        </select>
+      </div>
       <div class="hint">Enter Riot IDs like <code>Faker#KR1</code> &middot; searches the last 60 days</div>
     </div>
 
@@ -459,6 +442,7 @@ footer p {
     async function searchChampionStats() {
       const name = champStatsNameInput.value.trim();
       const champDisplay = champStatsChampInput.value.trim();
+      const region = document.getElementById("regionSelect").value;
       if (!name || !champDisplay) return;
 
       const champId = championIdFromDisplayName(champDisplay);
@@ -472,7 +456,7 @@ footer p {
       champStatsResultsEl.innerHTML = `<div class="status-msg">Checking recent games involving ${champDisplay}&hellip; this can take a little while.</div>`;
 
       try {
-        const url = "/api/champion-stats?name=" + encodeURIComponent(name) + "&champion=" + encodeURIComponent(champId);
+        const url = "/api/champion-stats?name=" + encodeURIComponent(name) + "&champion=" + encodeURIComponent(champId) + "&region=" + region;
         const res = await fetch(url);
         const data = await res.json();
 
@@ -484,6 +468,7 @@ footer p {
           shareUrl.search = "";
           shareUrl.searchParams.set("champName", name);
           shareUrl.searchParams.set("champ", champDisplay);
+          if (region !== "americas") shareUrl.searchParams.set("region", region);
           window.history.replaceState({}, "", shareUrl.toString());
         }
       } catch (err) {
@@ -551,6 +536,8 @@ footer p {
         shareUrl.search = "";
         shareUrl.searchParams.set("champName", name);
         shareUrl.searchParams.set("champ", champDisplay);
+        const region = document.getElementById("regionSelect").value;
+        if (region !== "americas") shareUrl.searchParams.set("region", region);
 
         navigator.clipboard.writeText(shareUrl.toString()).then(() => {
           copyBtn.textContent = "Link copied";
@@ -780,6 +767,8 @@ footer p {
         shareUrl.searchParams.set("a", nameA);
         shareUrl.searchParams.set("b", nameB);
         if (jungleOnly) shareUrl.searchParams.set("jungleOnly", "true");
+        const region = document.getElementById("regionSelect").value;
+        if (region !== "americas") shareUrl.searchParams.set("region", region);
 
         navigator.clipboard.writeText(shareUrl.toString()).then(() => {
           copyBtn.textContent = "Link copied";
@@ -809,6 +798,7 @@ footer p {
       const a = nameAInput.value.trim();
       const b = nameBInput.value.trim();
       const jungleOnly = document.getElementById("jungleOnly").checked;
+      const region = document.getElementById("regionSelect").value;
       if (!a || !b) return;
 
       searchBtn.disabled = true;
@@ -817,7 +807,7 @@ footer p {
 
       try {
         const url = "/api/matchup?a=" + encodeURIComponent(a) + "&b=" + encodeURIComponent(b) +
-          "&jungleOnly=" + jungleOnly;
+          "&jungleOnly=" + jungleOnly + "&region=" + region;
         const res = await fetch(url);
         const data = await res.json();
 
@@ -825,13 +815,12 @@ footer p {
           resultsEl.innerHTML = `<div class="status-msg error">${data.error || "Something went wrong."}</div>`;
         } else {
           renderResults(data, a, b);
-          // Keep the address bar in sync so people can share by just
-          // copying the URL, not only via the Copy link button.
           const shareUrl = new URL(window.location.href);
           shareUrl.search = "";
           shareUrl.searchParams.set("a", a);
           shareUrl.searchParams.set("b", b);
           if (jungleOnly) shareUrl.searchParams.set("jungleOnly", "true");
+          if (region !== "americas") shareUrl.searchParams.set("region", region);
           window.history.replaceState({}, "", shareUrl.toString());
         }
       } catch (err) {
@@ -851,6 +840,14 @@ footer p {
     // both names and run the search automatically.
     (function autoSearchFromUrl() {
       const params = new URLSearchParams(window.location.search);
+
+      // Restore region first so both search functions pick it up correctly.
+      const region = params.get("region");
+      if (region) {
+        const sel = document.getElementById("regionSelect");
+        if (sel) sel.value = region;
+      }
+
       const a = params.get("a");
       const b = params.get("b");
       if (a && b) {
@@ -867,24 +864,9 @@ footer p {
       if (champName && champ) {
         champStatsNameInput.value = champName;
         champStatsChampInput.value = champ;
-        // championIdFromDisplayName needs the Data Dragon list loaded first,
-        // or a freshly-opened shared link would silently fail to match.
         championListReady.then(() => searchChampionStats());
       }
     })();
   </script>
-<footer>
-  <div class="footer-inner">
-    <p class="footer-disclaimer">
-      LeaguesPvPwr isn't endorsed by Riot Games and doesn't reflect the views or opinions of Riot Games or anyone officially involved in producing or managing Riot Games properties. Riot Games, and all associated properties are trademarks or registered trademarks of Riot Games, Inc.
-    </p>
-    <p class="footer-privacy">
-      <strong>Privacy:</strong> This site doesn't use cookies, accounts, or tracking. Search inputs are processed in memory and not stored. Standard hosting logs (IP addresses, request timestamps) are retained by Render as part of normal server operation.
-    </p>
-    <p class="footer-meta">
-      LeaguesPvPwr · Fan project · Not affiliated with Riot Games
-    </p>
-  </div>
-</footer>
 </body>
 </html>
