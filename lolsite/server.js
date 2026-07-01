@@ -16,7 +16,14 @@ const path = require("path");
 const app = express();
 const PORT = process.env.PORT || 3000;
 const RIOT_API_KEY = process.env.RIOT_API_KEY;
-const CONTINENT = process.env.RIOT_CONTINENT || "americas"; // americas | europe | asia
+
+// Valid continent routing values for Riot's match-v5 and account-v1 APIs.
+// americas = NA, BR, LAN, LAS
+// europe   = EUW, EUNE, TR, RU
+// asia     = KR, JP
+// sea      = OCE (OC1), and Southeast Asian servers
+const VALID_CONTINENTS = new Set(["americas", "europe", "asia", "sea"]);
+const DEFAULT_CONTINENT = process.env.RIOT_CONTINENT || "americas";
 
 // How far back to search for shared matches. match-v5's startTime/endTime
 // filter lets us ask for a real date range instead of guessing how many
@@ -82,43 +89,43 @@ async function riotFetch(url) {
   return res.json();
 }
 
-async function getPuuid(riotId) {
+async function getPuuid(riotId, continent) {
   const [gameName, tagLine] = riotId.split("#");
   if (!gameName || !tagLine) {
     const err = new Error(`"${riotId}" isn't a valid Riot ID. Use the format Name#Tag.`);
     err.status = 400;
     throw err;
   }
-  const url = `https://${CONTINENT}.api.riotgames.com/riot/account/v1/accounts/by-riot-id/${encodeURIComponent(gameName)}/${encodeURIComponent(tagLine)}`;
+  const url = `https://${continent}.api.riotgames.com/riot/account/v1/accounts/by-riot-id/${encodeURIComponent(gameName)}/${encodeURIComponent(tagLine)}`;
   const data = await riotFetch(url);
   return data.puuid;
 }
 
 // Fetches ALL match IDs within the lookback window, paginating in batches
 // of 100 (match-v5's max per call) until Riot returns an empty page.
-async function getMatchIdsInWindow(puuid, lookbackDays) {
-  const startTime = Math.floor((Date.now() - lookbackDays * 86400000) / 1000); // seconds
+async function getMatchIdsInWindow(puuid, lookbackDays, continent) {
+  const startTime = Math.floor((Date.now() - lookbackDays * 86400000) / 1000);
   const allIds = [];
   let start = 0;
   const pageSize = 100;
 
   while (true) {
     const url =
-      `https://${CONTINENT}.api.riotgames.com/lol/match/v5/matches/by-puuid/${puuid}/ids` +
+      `https://${continent}.api.riotgames.com/lol/match/v5/matches/by-puuid/${puuid}/ids` +
       `?startTime=${startTime}&start=${start}&count=${pageSize}`;
     const page = await riotFetch(url);
     allIds.push(...page);
 
-    if (page.length < pageSize) break; // last page
+    if (page.length < pageSize) break;
     start += pageSize;
-    if (start > 1000) break; // hard safety ceiling, ~10 pages
+    if (start > 1000) break;
   }
 
   return allIds;
 }
 
-async function getMatch(matchId) {
-  const url = `https://${CONTINENT}.api.riotgames.com/lol/match/v5/matches/${matchId}`;
+async function getMatch(matchId, continent) {
+  const url = `https://${continent}.api.riotgames.com/lol/match/v5/matches/${matchId}`;
   return riotFetch(url);
 }
 
@@ -224,6 +231,7 @@ app.get("/api/matchup", async (req, res) => {
   const riotIdA = req.query.a;
   const riotIdB = req.query.b;
   const jungleOnly = req.query.jungleOnly === "true";
+  const continent = VALID_CONTINENTS.has(req.query.region) ? req.query.region : DEFAULT_CONTINENT;
 
   if (!RIOT_API_KEY) {
     return res.status(500).json({ error: "Server is missing RIOT_API_KEY. Set it in your host's environment variables." });
@@ -233,11 +241,11 @@ app.get("/api/matchup", async (req, res) => {
   }
 
   try {
-    const [puuidA, puuidB] = await Promise.all([getPuuid(riotIdA), getPuuid(riotIdB)]);
+    const [puuidA, puuidB] = await Promise.all([getPuuid(riotIdA, continent), getPuuid(riotIdB, continent)]);
 
     const [idsA, idsB] = await Promise.all([
-      getMatchIdsInWindow(puuidA, LOOKBACK_DAYS),
-      getMatchIdsInWindow(puuidB, LOOKBACK_DAYS),
+      getMatchIdsInWindow(puuidA, LOOKBACK_DAYS, continent),
+      getMatchIdsInWindow(puuidB, LOOKBACK_DAYS, continent),
     ]);
 
     const setB = new Set(idsB);
@@ -248,7 +256,7 @@ app.get("/api/matchup", async (req, res) => {
 
     let matches = [];
     for (const matchId of sharedIds) {
-      const matchData = await getMatch(matchId);
+      const matchData = await getMatch(matchId, continent);
       const h2h = extractHeadToHead(matchData, puuidA, puuidB);
       if (h2h) matches.push(h2h);
       await new Promise((r) => setTimeout(r, 50)); // be gentle with rate limits
@@ -287,6 +295,7 @@ app.get("/api/matchup", async (req, res) => {
       jungleMatchCount,
       totalFetchedCount: sharedIds.length,
       totalSharedFound,
+      region: continent,
     });
   } catch (err) {
     console.error(err);
@@ -313,6 +322,7 @@ app.get("/api/matchup", async (req, res) => {
 app.get("/api/champion-stats", async (req, res) => {
   const riotId = req.query.name;
   const champion = req.query.champion;
+  const continent = VALID_CONTINENTS.has(req.query.region) ? req.query.region : DEFAULT_CONTINENT;
 
   if (!RIOT_API_KEY) {
     return res.status(500).json({ error: "Server is missing RIOT_API_KEY. Set it in your host's environment variables." });
@@ -322,8 +332,8 @@ app.get("/api/champion-stats", async (req, res) => {
   }
 
   try {
-    const puuid = await getPuuid(riotId);
-    const matchIds = await getMatchIdsInWindow(puuid, LOOKBACK_DAYS);
+    const puuid = await getPuuid(riotId, continent);
+    const matchIds = await getMatchIdsInWindow(puuid, LOOKBACK_DAYS, continent);
     const capped = matchIds.slice(0, MAX_SHARED_MATCHES_TO_FETCH);
     const truncated = matchIds.length > MAX_SHARED_MATCHES_TO_FETCH;
 
@@ -331,7 +341,7 @@ app.get("/api/champion-stats", async (req, res) => {
     const against = { wins: 0, losses: 0 };
 
     for (const matchId of capped) {
-      const matchData = await getMatch(matchId);
+      const matchData = await getMatch(matchId, continent);
       await new Promise((r) => setTimeout(r, 50));
 
       const self = matchData.info.participants.find((pp) => pp.puuid === puuid);
