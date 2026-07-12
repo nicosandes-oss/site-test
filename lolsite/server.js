@@ -232,6 +232,7 @@ app.get("/api/matchup", async (req, res) => {
   const riotIdB = req.query.b;
   const jungleOnly = req.query.jungleOnly === "true";
   const continent = VALID_CONTINENTS.has(req.query.region) ? req.query.region : DEFAULT_CONTINENT;
+  console.log(`[matchup] region param: ${req.query.region} → continent: ${continent}`);
 
   if (!RIOT_API_KEY) {
     return res.status(500).json({ error: "Server is missing RIOT_API_KEY. Set it in your host's environment variables." });
